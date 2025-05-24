@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-contract FarcasterOG {
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+
+contract FarcasterOG is ERC721, ERC721Burnable {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -10,8 +13,7 @@ contract FarcasterOG {
                                PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The name of the contract.
-    string public name;
+    address public immutable acrossSpokePool;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -21,6 +23,8 @@ contract FarcasterOG {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
 
+    error Unauthorized();
+
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -29,13 +33,30 @@ contract FarcasterOG {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(string memory _name) {
-        name = _name;
-    }
+    constructor() ERC721("Farcaster OG", "FCOG") {}
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function handleV3AcrossMessage(
+        address tokenSent,
+        uint256 amount,
+        address relayer,
+        bytes memory message
+    ) external {
+        // Verify that this call came from the Across SpokePool
+        if (msg.sender != acrossSpokePool) revert Unauthorized();
+
+        // Decode the message
+        (uint256 tokenId, address recipient) = abi.decode(
+            message,
+            (uint256, address)
+        );
+
+        // Mint the NFT
+        _safeMint(recipient, tokenId);
+    }
 
     /*//////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
