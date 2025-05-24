@@ -33,9 +33,11 @@ contract NFTMigrator {
                                PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    BurnableERC721 public immutable collection;
+    BurnableERC721 public immutable originCollection;
     AcrossV3SpokePool public immutable spokePool;
     uint256 public immutable destinationChainId;
+    address public immutable destinationCollection;
+    address public immutable weth;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -54,33 +56,37 @@ contract NFTMigrator {
     //////////////////////////////////////////////////////////////*/
 
     constructor(
-        address _collection,
+        address _originCollection,
         address _spokePool,
-        uint256 _destinationChainId
+        uint256 _destinationChainId,
+        address _destinationCollection,
+        address _weth
     ) {
-        collection = BurnableERC721(_collection);
+        originCollection = BurnableERC721(_originCollection);
         spokePool = AcrossV3SpokePool(_spokePool);
         destinationChainId = _destinationChainId;
+        destinationCollection = _destinationCollection;
+        weth = _weth;
     }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function migrate(uint256 tokenId, address recipient) external {
-        // This will revert if the sender does not own the NFT, so we don't need additional checks.
-        collection.burn(tokenId);
+    function migrate(uint256 tokenId, address recipient) external payable {
+        // This will revert if the sender does not own the NFT, so we don't need additional checks
+        originCollection.burn(tokenId);
 
-        // Initiate a cross-chain intent to mint an equivalent NFT on Base.
+        // Initiate a cross-chain intent to mint an equivalent NFT on Base
         spokePool.depositV3(
             msg.sender, // depositor
-            recipient, // recipient
-            address(0), // inputToken
+            destinationCollection, // recipient
+            weth, // inputToken
             address(0), // outputToken
-            0, // inputAmount
+            0, // inputAmount (TODO: this has to be enough to cover the Across fee)
             0, // outputAmount
             destinationChainId, // destinationChainId
-            address(0), // exclusiveRelayer (TODO: fix)
+            address(0), // exclusiveRelayer (TODO: figure out what this needs to be)
             block.timestamp, // quoteTimestamp
             block.timestamp + 3600, // fillDeadline
             block.timestamp + 3600, // exclusivityDeadline
