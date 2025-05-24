@@ -1,7 +1,8 @@
 import hre from 'hardhat'
 import { encodeAbiParameters } from 'viem/utils'
 
-import { generateSaltAndDeploy } from './lib/create2'
+import { create2Deploy } from './lib/create2'
+import { getInitCode } from './lib/initcode'
 
 async function main() {
   const contractName = 'Contract'
@@ -15,12 +16,14 @@ async function main() {
     constructorArguments
   )
 
-  const { address } = await generateSaltAndDeploy({
-    vanity: '0x000',
-    encodedArgs,
+  const { initCode, initCodeHash } = await getInitCode(
     contractName,
-    caseSensitive: false,
-    startingIteration: 0,
+    encodedArgs
+  )
+
+  const { address } = await create2Deploy({
+    initCode,
+    salt: '0x0000000000000000000000000000000000000000000000000000000000000000',
   })
 
   console.log(`Deployed ${contractName} to ${address}`)

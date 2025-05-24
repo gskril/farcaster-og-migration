@@ -3,18 +3,18 @@ import { expect } from 'chai'
 import hre from 'hardhat'
 
 const deploy = async () => {
-  const contract = await hre.viem.deployContract('Contract', [
-    'Contract', // _name
+  const migrator = await hre.viem.deployContract('NFTMigrator', [
+    'NFTMigrator', // _name
   ])
 
-  return { contract }
+  return { migrator }
 }
 
 describe('Tests', function () {
   it('should return the contract name', async function () {
-    const { contract } = await loadFixture(deploy)
+    const { migrator } = await loadFixture(deploy)
 
-    const contractName = await contract.read.name()
-    expect(contractName).to.equal('Contract')
+    const contractName = await migrator.read.name()
+    expect(contractName).to.equal('NFTMigrator')
   })
 })

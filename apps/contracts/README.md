@@ -1,6 +1,13 @@
 # Contracts
 
-Hardhat project for building smart contracts. The deploy script uses CREATE2 to easily mine a vanity address.
+There are two contracts in this project:
+
+- `NFTMigrator.sol`: Burns NFTs on Zora and initiates a crosschain intent to mint an equivalent NFT on Base.
+- `FarcasterOG.sol`: New Farcaster OG NFT collection on Base.
+
+Zora collection: [`0xe03ef4b9db1a47464de84fb476f9baf493b3e886`](https://explorer.zora.energy/address/0xe03ef4b9db1a47464de84fb476f9baf493b3e886)
+
+Base collection: `TODO`
 
 ## Local Development
 

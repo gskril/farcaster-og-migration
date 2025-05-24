@@ -1,3 +1,5 @@
-# Web3 Monorepo Template
+# Farcaster OG Migration
 
-This is an opinionated monorepo template for web3 projects. It uses Hardhat for [smart contracts](./apps/contracts/README.md) and Next.js for the [web app](./apps/web/README.md).
+Contracts and web app to migrate Farcaster OG NFTs from Zora to Base.
+
+Read more in [`apps/contracts/`](./apps/contracts/README.md) and [`apps/web/`](./apps/web/README.md).
