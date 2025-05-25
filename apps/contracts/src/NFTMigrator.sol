@@ -73,24 +73,25 @@ contract NFTMigrator {
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    // TODO: figure out what happens in worst case scenario when `msg.value` isn't enough to cover the Across fee
     function migrate(uint256 tokenId, address recipient) external payable {
         // This will revert if the sender does not own the NFT, so we don't need additional checks
         originCollection.burn(tokenId);
 
         // Initiate a cross-chain intent to mint an equivalent NFT on Base
-        spokePool.depositV3(
+        spokePool.depositV3{value: msg.value}(
             msg.sender, // depositor
             destinationCollection, // recipient
-            weth, // inputToken
-            address(0), // outputToken
-            0, // inputAmount (TODO: this has to be enough to cover the Across fee)
+            weth, // inputToken (user pays Across fee in ETH which will be automatically wrapped)
+            address(0), // outputToken (0 means its the equivalent of `inputToken` on the destination chain)
+            msg.value, // inputAmount (this is the Across fee)
             0, // outputAmount
             destinationChainId, // destinationChainId
-            address(0), // exclusiveRelayer (TODO: figure out what this needs to be)
+            address(0), // exclusiveRelayer (we want any relayer to be able to fill the intent)
             block.timestamp, // quoteTimestamp
-            block.timestamp + 3600, // fillDeadline
-            block.timestamp + 3600, // exclusivityDeadline
-            abi.encode(tokenId, recipient) // message
+            block.timestamp + 3600, // fillDeadline (intent is valid for 1 hour)
+            0, // exclusivityDeadline (irrelevant because we've disabled relayer exclusivity)
+            abi.encode(tokenId, recipient) // message (decoded on the destination chain to mint the NFT)
         );
     }
 
