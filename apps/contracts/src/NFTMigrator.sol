@@ -1,30 +1,18 @@
 // SPDX-License-Identifier: MIT
+// https://docs.layerzero.network/v2/developers/evm/create-lz-oapp/start
 pragma solidity ^0.8.28;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import {OApp, MessagingFee, Origin} from "@layerzerolabs/oapp-evm/contracts/oapp/OApp.sol";
+import {MessagingReceipt} from "@layerzerolabs/oapp-evm/contracts/oapp/OAppSender.sol";
 
+// This is the interface for the Farcaster OG collection
 interface BurnableERC721 is IERC721 {
     function burn(uint256 tokenId) external;
 }
 
-interface AcrossV3SpokePool {
-    function depositV3(
-        address depositor,
-        address recipient,
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount,
-        uint256 destinationChainId,
-        address exclusiveRelayer,
-        uint32 quoteTimestamp,
-        uint32 fillDeadline,
-        uint32 exclusivityDeadline,
-        bytes calldata message
-    ) external;
-}
-
-contract NFTMigrator {
+contract NFTMigrator is OApp {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -33,15 +21,14 @@ contract NFTMigrator {
                                PARAMETERS
     //////////////////////////////////////////////////////////////*/
 
-    BurnableERC721 public immutable originCollection;
-    AcrossV3SpokePool public immutable spokePool;
-    uint256 public immutable destinationChainId;
-    address public immutable destinationCollection;
-    address public immutable weth;
+    BurnableERC721 public immutable collection;
+    uint32 public immutable destEndpointId;
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    event Migrated(uint256 tokenId, address owner);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -56,54 +43,51 @@ contract NFTMigrator {
     //////////////////////////////////////////////////////////////*/
 
     constructor(
-        address _originCollection,
-        address _spokePool,
-        uint256 _destinationChainId,
-        address _destinationCollection,
-        address _weth
-    ) {
-        originCollection = BurnableERC721(_originCollection);
-        spokePool = AcrossV3SpokePool(_spokePool);
-        destinationChainId = _destinationChainId;
-        destinationCollection = _destinationCollection;
-        weth = _weth;
+        address _endpoint,
+        address _delegate,
+        address _collection,
+        uint32 _destEndpointId
+    ) OApp(_endpoint, _delegate) Ownable(_delegate) {
+        collection = BurnableERC721(_collection);
+        destEndpointId = _destEndpointId;
     }
 
     /*//////////////////////////////////////////////////////////////
                             PUBLIC FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // TODO: figure out what happens in worst case scenario when `msg.value` isn't enough to cover the Across fee
-    function migrate(uint256 tokenId, address recipient) external payable {
-        // This will revert if the sender does not own the NFT, so we don't need additional checks
-        originCollection.burn(tokenId);
+    /// @dev The user will need to approve this contract to transfer their NFT before this method can be called.
+    /// TODO: Figure out what happens in a worse case scenario where the _lzSend doesn't get executed.
+    function migrate(
+        uint256 tokenId,
+        address recipient
+    ) external payable returns (MessagingReceipt memory receipt) {
+        bytes memory data = abi.encode(tokenId, recipient);
+        MessagingFee memory fee = quote(tokenId, recipient);
 
-        // Initiate a cross-chain intent to mint an equivalent NFT on Base
-        spokePool.depositV3{value: msg.value}(
-            msg.sender, // depositor
-            destinationCollection, // recipient
-            weth, // inputToken (user pays Across fee in ETH which will be automatically wrapped)
-            address(0), // outputToken (0 means its the equivalent of `inputToken` on the destination chain)
-            msg.value, // inputAmount (this is the Across fee)
-            0, // outputAmount
-            destinationChainId, // destinationChainId
-            address(0), // exclusiveRelayer (we want any relayer to be able to fill the intent)
-            block.timestamp, // quoteTimestamp
-            block.timestamp + 3600, // fillDeadline (intent is valid for 1 hour)
-            0, // exclusivityDeadline (irrelevant because we've disabled relayer exclusivity)
-            abi.encode(tokenId, recipient) // message (decoded on the destination chain to mint the NFT)
-        );
+        // This will revert if the sender does not own the NFT, so we don't need additional checks
+        collection.burn(tokenId);
+
+        receipt = _lzSend(destEndpointId, data, "", fee, payable(msg.sender));
+        emit Migrated(tokenId, recipient);
+        return receipt;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Quotes the fee to pay for the full omnichain transaction in ETH.
+    function quote(
+        uint256 tokenId,
+        address recipient
+    ) public view returns (MessagingFee memory fee) {
+        bytes memory payload = abi.encode(tokenId, recipient);
+        return _quote(destEndpointId, payload, "", false);
+    }
 
-    /*//////////////////////////////////////////////////////////////
-                           INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /*//////////////////////////////////////////////////////////////
-                           REQUIRED OVERRIDES
-    //////////////////////////////////////////////////////////////*/
+    /// @dev `OApp` requires this override, but we don't expect to receive any messages so will keep it empty
+    function _lzReceive(
+        Origin calldata,
+        bytes32,
+        bytes calldata payload,
+        address,
+        bytes calldata
+    ) internal override {}
 }
