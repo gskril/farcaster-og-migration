@@ -10,7 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract FarcasterOG is ERC721, ERC721Burnable, OAppReceiver {
     /*//////////////////////////////////////////////////////////////
-                               PARAMETERS
+                            STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     address public immutable acrossSpokePool;
@@ -18,6 +18,8 @@ contract FarcasterOG is ERC721, ERC721Burnable, OAppReceiver {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
+    event Redeemed(uint256 tokenId, address owner);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -39,7 +41,7 @@ contract FarcasterOG is ERC721, ERC721Burnable, OAppReceiver {
     {}
 
     /*//////////////////////////////////////////////////////////////
-                            PUBLIC FUNCTIONS
+                               OVERRIDES
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -61,6 +63,12 @@ contract FarcasterOG is ERC721, ERC721Burnable, OAppReceiver {
         address /*_executor*/,
         bytes calldata /*_extraData*/
     ) internal override {
-        // abi.decode(payload, (string));
+        (uint256 tokenId, address owner) = abi.decode(
+            payload,
+            (uint256, address)
+        );
+
+        _safeMint(owner, tokenId);
+        emit Redeemed(tokenId, owner);
     }
 }

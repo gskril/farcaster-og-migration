@@ -14,11 +14,7 @@ interface BurnableERC721 is IERC721 {
 
 contract NFTMigrator is OApp {
     /*//////////////////////////////////////////////////////////////
-                                STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /*//////////////////////////////////////////////////////////////
-                               PARAMETERS
+                            STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
 
     BurnableERC721 public immutable collection;
@@ -28,15 +24,7 @@ contract NFTMigrator is OApp {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Migrated(uint256 tokenId, address owner);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-
-    /*//////////////////////////////////////////////////////////////
-                               MODIFIERS
-    //////////////////////////////////////////////////////////////*/
+    event Burned(uint256 tokenId, address owner);
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -69,7 +57,7 @@ contract NFTMigrator is OApp {
         collection.burn(tokenId);
 
         receipt = _lzSend(destEndpointId, data, "", fee, payable(msg.sender));
-        emit Migrated(tokenId, recipient);
+        emit Burned(tokenId, msg.sender);
         return receipt;
     }
 
@@ -81,6 +69,10 @@ contract NFTMigrator is OApp {
         bytes memory payload = abi.encode(tokenId, recipient);
         return _quote(destEndpointId, payload, "", false);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                               OVERRIDES
+    //////////////////////////////////////////////////////////////*/
 
     /// @dev `OApp` requires this override, but we don't expect to receive any messages so will keep it empty
     function _lzReceive(
